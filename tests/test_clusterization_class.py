@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import pytest
 # Для ручки
+# вручную
 # from assistant_lab2.src.analysis.clusterization_methods import Clusterizer
 from src.analysis.clusterization_methods import Clusterizer
 
