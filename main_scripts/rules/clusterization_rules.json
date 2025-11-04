@@ -1,0 +1,53 @@
+{
+  "data_size": {
+    "High": [
+      "KMeans"
+    ],
+    "Low": [
+      "AgglomerativeClustering",
+      "DBSCAN",
+      "AffinityPropagation"
+    ],
+    "Average": [
+      "KMeans",
+      "DBSCAN"
+    ]
+  },
+  "data_set": {
+    "Low": [
+      "KMeans",
+      "AgglomerativeClustering",
+      "DBSCAN",
+      "AffinityPropagation"
+    ],
+    "High": [
+      "SpectralClustering",
+      "AgglomerativeClustering",
+      "DBSCAN",
+      "AffinityPropagation"
+    ]
+  },
+  "num_clusters": {
+    "Known": [
+      "KMeans",
+      "AgglomerativeClustering",
+      "SpectralClustering"
+    ],
+    "Unknown": [
+      "DBSCAN",
+      "AffinityPropagation"
+    ]
+  },
+  "noise": {
+    "Low": [
+      "KMeans",
+      "AgglomerativeClustering",
+      "SpectralClustering",
+      "AffinityPropagation"
+    ],
+    "High": [
+      "DBSCAN",
+      "SpectralClustering"
+    ]
+  }
+}

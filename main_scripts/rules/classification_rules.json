@@ -1,0 +1,63 @@
+{
+  "dimensionality": {
+    "Low": [
+      "NaiveBayes",
+      "KNN",
+      "SVM",
+      "LogisticRegression"
+    ],
+    "High": [
+      "RandomForest",
+      "DecisionTree",
+      "GradientBoosting",
+      "SVM"
+    ]
+  },
+  "data_volume": {
+    "Small": [
+      "NaiveBayes",
+      "KNN",
+      "SVM",
+      "DecisionTree",
+      "LogisticRegression"
+    ],
+    "Large": [
+      "RandomForest",
+      "GradientBoosting",
+      "NaiveBayes"
+    ]
+  },
+  "linearity": {
+    "Linearly separable": [
+      "LogisticRegression",
+      "NaiveBayes",
+      "SVM"
+    ],
+    "Linearly inseparable": [
+      "KNN",
+      "DecisionTree",
+      "RandomForest",
+      "GradientBoosting",
+      "SVM"
+    ]
+  },
+  "class_balance": {
+    "Balanced": [
+      "NaiveBayes",
+      "KNN",
+      "SVM",
+      "DecisionTree",
+      "RandomForest",
+      "GradientBoosting",
+      "LogisticRegression"
+    ],
+    "Imbalanced": [
+      "RandomForest",
+      "GradientBoosting",
+      "LogisticRegression"
+    ]
+  },
+   "defaults": {
+        "algorithm": "KNN"
+    }
+}

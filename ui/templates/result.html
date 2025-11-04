@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>{{ title }}</h1>
+
+    {% if warning %}
+    <div class="alert">{{ warning }}</div>
+    {% endif %}
+
+    {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Timestamp</th>
+            <th>Label</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.get("ID") }}</td>
+            <td>{{ row.get("Timestamp") }}</td>
+            <td>{{ row.get("Label") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="muted">Задача выполнена. Нет специальных табличных данных для отображения.</p>
+    {% endif %}
+
+    <form action="/web/run" method="post" class="card" style="margin-top: 24px;">
+      <!-- Скрытые поля: позволят быстро запустить повторно -->
+      {% for k,v in payload.items() %}
+        <input type="hidden" name="{{k}}" value="{{v or ''}}"/>
+      {% endfor %}
+      <div class="actions">
+        <button type="submit">Запустить ещё раз с теми же параметрами</button>
+        <a class="link" href="/">Вернуться к форме</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

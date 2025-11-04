@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Обучение и предсказание</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Форма менеджера агента</h1>
+    <p class="muted">Предназначена для запуска задач LEARN / LEARN AND PREDICT / PREDICT / DELETE.</p>
+
+    <form action="/web/run" method="post" class="card">
+      <div class="grid">
+        <label>Server *
+          <input type="text" name="server" placeholder="127.0.0.1" required />
+        </label>
+        <label>Port *
+          <input type="number" name="port" placeholder="5432" required />
+        </label>
+        <label>User *
+          <input type="text" name="user" required />
+        </label>
+        <label>Password *
+          <input type="password" name="password" required />
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>База данных (данные для обучения/предсказания)
+          <input type="text" name="name_database_data" placeholder="db_with_data" />
+        </label>
+        <label>База данных (результаты анализа в кратком виде) *
+          <input type="text" name="name_database_agent" placeholder="db_agent" required />
+        </label>
+        <label>Таблица для обучения
+          <input type="text" name="name_table_for_learn" placeholder="table_learn" />
+        </label>
+        <label>Таблица для предсказания *
+          <input type="text" name="name_table_for_predict" placeholder="table_predict" required />
+        </label>
+      </div>
+
+      <div class="grid">
+        <label>Выбор меток анализа
+          <input type="text" name="label_limit" placeholder="Все / Норма / Перегрузка" />
+        </label>
+        <label>Ограничение строк для вывода
+          <input type="text" name="str_limit" placeholder="5" />
+        </label>
+        <label>Задача *
+          <select name="task_manager" required>
+            <option value="LEARN">LEARN</option>
+            <option value="PREDICT">PREDICT</option>
+            <option value="LEARN AND PREDICT">LEARN AND PREDICT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="submit">Запустить</button>
+      </div>
+    </form>
+
+    <details class="help">
+      <summary>Подсказки по заполнению</summary>
+      <ul>
+        <li><b>LEARN</b> — использует данные из базы для обучения и сохранения модели в базе агента. Обученная модель сохраняется в базе.</li>
+        <li><b>PREDICT</b> — читает модель из базы и предсказывает метки для данного оборудования. Результат сохраняется в базе.</li>
+        <li><b>LEARN AND PREDICT</b> — объединяет оба шага.</li>
+        <li><b>DELETE</b> — очищает данные по прошлому опыту анализа для данного оборудования.</li>
+      </ul>
+    </details>
+  </div>
+</body>
+</html>
