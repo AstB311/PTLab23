@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 # Для ручки
-# вручную
 # from assistant_lab2.src.analysis.clusterization_methods
 from src.analysis.classification_methods import ClassificationSuite
 
