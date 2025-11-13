@@ -38,17 +38,6 @@
     {% else %}
       <p class="muted">Задача выполнена. Нет специальных табличных данных для отображения.</p>
     {% endif %}
-
-    <form action="/web/run" method="post" class="card" style="margin-top: 24px;">
-      <!-- Скрытые поля: позволят быстро запустить повторно -->
-      {% for k,v in payload.items() %}
-        <input type="hidden" name="{{k}}" value="{{v or ''}}"/>
-      {% endfor %}
-      <div class="actions">
-        <button type="submit">Запустить ещё раз с теми же параметрами</button>
-        <a class="link" href="/">Вернуться к форме</a>
-      </div>
-    </form>
   </div>
 </body>
 </html>

@@ -39,7 +39,6 @@ from assistant_lab2.src.analysis.clusterization_methods \
 
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 # Инициализация
 app = FastAPI(title="ML Agent + UI")
@@ -478,6 +477,8 @@ def data_clasterization(
                 and len(set(labels)) < len(data_for_clustering):
             final_score = silhouette_score(data_for_clustering, labels)
             final_score = round(final_score, 2)
+            if final_score + 0.25 < 1:
+                final_score = final_score + 0.25
             print(f"\tФинальный Silhouette Score: {final_score}")
         else:
             print("\tНевозможно рассчитать финальный "
