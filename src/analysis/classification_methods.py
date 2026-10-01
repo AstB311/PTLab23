@@ -13,19 +13,23 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
+from assistant_lab2.src.analysis.base_ml_suite import BaseMLSuite
 
-class ClassificationSuite:
+
+class ClassificationSuite(BaseMLSuite):
     """
     Класс объединяет процедуры обучения/предсказания
     и функцию для оценки линейной разделимости.
     """
 
-    def __init__(self,
-                 test_size: float = 0.2,
-                 random_state: int = 42
-                 ):
+    def __init__(
+            self,
+            test_size: float = 0.2,
+            random_state: int = 42,
+    ):
+        # вызывает конструктор родителя
+        super().__init__(random_state=random_state)
         self.test_size = test_size
-        self.random_state = random_state
 
     # Деление
     def _split(self, X: np.ndarray, y: np.ndarray):

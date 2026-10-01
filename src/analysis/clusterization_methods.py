@@ -2,6 +2,8 @@ import pickle
 from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 
+from assistant_lab2.src.analysis.base_ml_suite import BaseMLSuite
+
 from sklearn.cluster import (
     AffinityPropagation,
     AgglomerativeClustering,
@@ -13,11 +15,12 @@ from sklearn.cluster import (
 ReturnType = Union[np.ndarray, Tuple[np.ndarray, Any]]
 
 
-class Clusterizer:
+class Clusterizer(BaseMLSuite):
     """Единый класс со всеми методами кластеризации."""
 
     def __init__(self, random_state: int = 42):
-        self.random_state = random_state
+        # вызывает конструктор родителя
+        super().__init__(random_state=random_state)
 
     # =Если модель была загружена
     def _fit_with(
