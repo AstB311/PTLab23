@@ -106,133 +106,135 @@ python main_scripts/main.py
 classDiagram
 direction TB
 
-%% ======================= Базовый класс =======================
+%% =================== Базовый класс ===================
 class BaseMLSuite {
-  - __random_state: int
-  + random_state: int
+  - __random_state : int
+  + random_state : int
   + __init__(random_state: int = 42)
 }
 
-%% ======================= Классификация =======================
+%% =================== Классификация ===================
 class ClassificationSuite {
-  - test_size: float
+  - test_size : float
   + __init__(test_size: float = 0.2, random_state: int = 42)
-  - _split(X, y) Tuple
-  - _train_and_predict(estimator_cls, X, y, best_params) Tuple
-  - _predict_loaded(loaded_model, data) Any
+  - _split(X, y)
+  - _train_and_predict(estimator_cls, X, y, best_params)
+  - _predict_loaded(loaded_model, data)
   + determine_linearity(X, y, threshold) str
-  + naive_bayes(loaded_model, data, X, y, best_params) Any
-  + knn(loaded_model, data, X, y, best_params) Any
-  + svm(loaded_model, data, X, y, best_params) Any
-  + logreg(loaded_model, data, X, y, best_params) Any
-  + decision_tree(loaded_model, data, X, y, best_params) Any
-  + random_forest(loaded_model, data, X, y, best_params) Any
-  + gradboost(loaded_model, data, X, y, best_params) Any
+  + naive_bayes(loaded_model, data, X, y, best_params)
+  + knn(loaded_model, data, X, y, best_params)
+  + svm(loaded_model, data, X, y, best_params)
+  + logreg(loaded_model, data, X, y, best_params)
+  + decision_tree(loaded_model, data, X, y, best_params)
+  + random_forest(loaded_model, data, X, y, best_params)
+  + gradboost(loaded_model, data, X, y, best_params)
   + dump_model(model) bytes
 }
 
-%% ======================= Кластеризация =======================
+%% =================== Кластеризация ===================
 class Clusterizer {
   + __init__(random_state: int = 42)
-  - _fit_with(data, params, loaded_model, build_model_fn) ReturnType
-  + kmeans(data, params, loaded_model) ReturnType
-  + agglomerative(data, params, loaded_model) ReturnType
-  + spectral(data, params, loaded_model) ReturnType
-  + dbscan(data, params, loaded_model) ReturnType
-  + affinity(data, params, loaded_model) ReturnType
+  - _fit_with(data, params, loaded_model, build_model_fn)
+  + kmeans(data, params, loaded_model)
+  + agglomerative(data, params, loaded_model)
+  + spectral(data, params, loaded_model)
+  + dbscan(data, params, loaded_model)
+  + affinity(data, params, loaded_model)
 }
 
-%% ======================= Подключение к БД =======================
+%% =================== Подключение к БД ===================
 class DatabaseConnector {
-  - __server: str
-  - __port: int
-  - __database: str
-  - __user: str
-  - __password: str
-  - __conn: asyncpg.Connection
-  + equipment: str
-  + equipment_predict: str
-  + server: str
-  + port: int
-  + database: str
-  + user: str
-  + is_connected: bool
+  - __server : str
+  - __port : int
+  - __database : str
+  - __user : str
+  - __password : str
+  - __conn : Connection
+  + equipment : str
+  + equipment_predict : str
+  + server : str
+  + port : int
+  + database : str
+  + user : str
+  + is_connected : bool
   - __require_connection() Connection
   + __init__(server, port, database, user, password, equipment, equipment_predict)
   + connect() bool
   + check_table_exists(table_name, schema) bool
   + check_exists_in_table(table_name, machine_name, schema) bool
-  + create_model_table(table_name, table_column_name, schema) None
-  + insert_data(table_name, data, schema) None
+  + create_model_table(table_name, table_column_name, schema)
+  + insert_data(table_name, data, schema)
   + get_data_table(table_name, schema) List
   + get_data_table_in_coloumn(table_name, coloumn_name, machine_name, schema) List
-  + delete_table_agent(table_name, schema) None
-  + close() None
+  + delete_table_agent(table_name, schema)
+  + close()
 }
 
-%% ======================= Модель входных данных API =======================
+%% =================== Pydantic-модель ===================
 class StringsInputServer {
-  + server: str
-  + port: int
-  + user: str
-  + password: str
-  + name_database_data: Optional~str~
-  + name_database_agent: str
-  + name_table_for_learn: Optional~str~
-  + name_table_for_predict: str
-  + label_limit: Optional~str~
-  + str_limit: Optional~str~
-  + task_manager: str
+  + server : str
+  + port : int
+  + user : str
+  + password : str
+  + name_database_data : Optional~str~
+  + name_database_agent : str
+  + name_table_for_learn : Optional~str~
+  + name_table_for_predict : str
+  + label_limit : Optional~str~
+  + str_limit : Optional~str~
+  + task_manager : str
 }
 
-%% ======================= Вспомогательный модуль =======================
+%% =================== Вспомогательный модуль ===================
 class two_methods_included {
   <<module>>
-  + concatenate_data_with_labels(data, labels_data, side) ndarray
-  + data_formater(data, task_manager, method) Any
+  + concatenate_data_with_labels(data, labels_data, side)
+  + data_formater(data, task_manager, method)
   + method_selector_by_analysis(analysis_results, rules) str
   + objective_claster(trial, model_class, param_grid, X) float
-  + optimize_hyperparameters_claster(model_class, param_grid, X, n_trials) Tuple
+  + optimize_hyperparameters_claster(model_class, param_grid, X, n_trials)
   + objective_classif(trial, model_class, param_grid, X, y) float
-  + optimize_hyperparameters_classif(model_class, param_grid, X, y, n_trials) Tuple
+  + optimize_hyperparameters_classif(model_class, param_grid, X, y, n_trials)
   + processing_limit_str(data, str_limit) List
   + processing_limit_label(data, label_limit) List
 }
 
-%% ======================= FastAPI-приложение =======================
+%% =================== FastAPI-приложение ===================
 class FastAPIApp {
   <<main.py>>
-  + task_processing(result, predict) Dict
-  + data_learn_claster_classif_distribution(...) bool
-  + data_predict_claster_classif_distribution(...) List
-  + data_classification(...) Tuple
-  + data_clasterization(...) Tuple
-  + delete_task_processing(...) bool
-  + processing_result_by_task(...) Dict
-  + api_train_and_prediction(input) Dict
-  + api_train(input) Dict
-  + api_delete(input) Dict
-  + api_prediction(input) Dict
-  + web_index(request) HTMLResponse
-  + web_run(...) HTMLResponse
+  + task_processing(result, predict)
+  + data_learn_claster_classif_distribution(...)
+  + data_predict_claster_classif_distribution(...)
+  + data_classification(...)
+  + data_clasterization(...)
+  + delete_task_processing(...)
+  + processing_result_by_task(...)
+  + api_train_and_prediction(input)
+  + api_train(input)
+  + api_delete(input)
+  + api_prediction(input)
+  + web_index(request)
+  + web_run(...)
 }
 
-%% ======================= Связи =======================
-BaseMLSuite <|-- ClassificationSuite : наследование
-BaseMLSuite <|-- Clusterizer : наследование
+%% =================== Наследование (обобщение) ===================
+BaseMLSuite <|-- ClassificationSuite : extends
+BaseMLSuite <|-- Clusterizer : extends
 
-FastAPIApp ..> StringsInputServer : валидация входа
-FastAPIApp ..> DatabaseConnector : создаёт и использует
-FastAPIApp ..> ClassificationSuite : создаёт и использует
-FastAPIApp ..> Clusterizer : создаёт и использует
-FastAPIApp ..> two_methods_included : вызывает функции
+%% =================== Зависимости (dependency) ===================
+FastAPIApp ..> StringsInputServer       : использует как входной DTO
+FastAPIApp ..> DatabaseConnector        : создаёт и вызывает
+FastAPIApp ..> ClassificationSuite      : создаёт и вызывает
+FastAPIApp ..> Clusterizer              : создаёт и вызывает
+FastAPIApp ..> two_methods_included     : вызывает функции
 
-two_methods_included ..> ClassificationSuite : оптимизация гиперпараметров
-two_methods_included ..> Clusterizer : оптимизация гиперпараметров
+ClassificationSuite ..> two_methods_included : использует утилиты
+Clusterizer         ..> two_methods_included : использует утилиты
 
-ClassificationSuite ..> DatabaseConnector : сохраняет/загружает модель через pickle
-Clusterizer ..> DatabaseConnector : сохраняет/загружает модель через pickle
+ClassificationSuite ..> DatabaseConnector : pickle-модели в БД
+Clusterizer         ..> DatabaseConnector : pickle-модели в БД
 
+%% =================== Внутренняя связь алгоритмов ===================
 ClassificationSuite ..> Clusterizer : использует метки кластеров
 ```
 
