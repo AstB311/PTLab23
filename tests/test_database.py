@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from src.analysis.connector import DatabaseConnector
 
@@ -15,13 +15,29 @@ def connector():
     )
 
 
+def make_mock_connection():
+    """Создаёт mock соединения с поведением asyncpg.Connection."""
+    mock_conn = Mock()
+
+    # В asyncpg этот метод синхронный.
+    mock_conn.is_closed.return_value = False
+
+    # Эти методы асинхронные.
+    mock_conn.fetchval = AsyncMock()
+    mock_conn.fetch = AsyncMock()
+    mock_conn.execute = AsyncMock()
+    mock_conn.close = AsyncMock()
+
+    return mock_conn
+
+
 @pytest.mark.asyncio
 @patch(
     "src.analysis.connector.asyncpg.connect",
     new_callable=AsyncMock,
 )
 async def test_connect_passes_required_params(mock_connect, connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     mock_connect.return_value = mock_conn
 
     result = await connector.connect()
@@ -39,7 +55,7 @@ async def test_connect_passes_required_params(mock_connect, connector):
 
 @pytest.mark.asyncio
 async def test_check_table_exists(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     mock_conn.fetchval.return_value = True
@@ -64,7 +80,7 @@ async def test_check_table_exists(connector):
 
 @pytest.mark.asyncio
 async def test_check_exists_in_table(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     mock_conn.fetchval.return_value = True
@@ -88,7 +104,7 @@ async def test_check_exists_in_table(connector):
 
 @pytest.mark.asyncio
 async def test_create_model_table(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     await connector.create_model_table(
@@ -107,7 +123,7 @@ async def test_create_model_table(connector):
 
 @pytest.mark.asyncio
 async def test_get_data_table(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     mock_conn.fetch.return_value = [
@@ -132,21 +148,21 @@ async def test_get_data_table(connector):
 
 @pytest.mark.asyncio
 async def test_get_data_table_in_coloumn(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     mock_conn.fetch.return_value = [
         {"machine": "A"},
     ]
 
-    res = await connector.get_data_table_in_coloumn(
+    result = await connector.get_data_table_in_coloumn(
         "models",
         "machine",
         "mach",
         schema="public",
     )
 
-    assert res == [
+    assert result == [
         {"machine": "A"},
     ]
 
@@ -161,7 +177,7 @@ async def test_get_data_table_in_coloumn(connector):
 
 @pytest.mark.asyncio
 async def test_delete_table_agent(connector):
-    mock_conn = AsyncMock()
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     await connector.delete_table_agent(
@@ -176,12 +192,7 @@ async def test_delete_table_agent(connector):
 
 @pytest.mark.asyncio
 async def test_close_calls(connector):
-    mock_conn = AsyncMock()
-
-    # У asyncpg.Connection метод is_closed() синхронный,
-    # поэтому здесь обычный Mock-подобный результат.
-    mock_conn.is_closed.return_value = False
-
+    mock_conn = make_mock_connection()
     connector._DatabaseConnector__conn = mock_conn
 
     await connector.close()
