@@ -1,0 +1,8 @@
+{
+  "server": "127.0.0.1", "port": 5432, "user": "postgres",
+  "password": "replace-with-your-local-password",
+  "name_database_data": "monitoring", "name_database_agent": "models",
+  "name_table_for_learn": "equipment_learn",
+  "name_table_for_predict": "equipment", "label_limit": "Все",
+  "str_limit": "1:20"
+}

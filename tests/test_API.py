@@ -1,126 +1,124 @@
+"""Запросы проходят через настоящее ASGI приложение."""
+from unittest.mock import AsyncMock
 import pytest
-import requests
-from unittest.mock import patch
+from fastapi import HTTPException
+from main_scripts import main
 
 
-BASE_URL = "http://127.0.0.1:8000/task"
-
-
-@pytest.fixture
-def base_data():
-    return {
-        "server": "localhost",
-        "port": 5432,
-        "user": "postgres",
-        "password": "5552225",
-        "name_database_agent": "bake_agent",
-    }
-
-
-@pytest.fixture
-def mock_post_response():
-    class MockResponse:
-
-        def __init__(self, status_code=200, json_data=None):
-            self.status_code = status_code
-            self._json = json_data or {"data": "mocked"}
-
-        def json(self):
-            return self._json
-
-    return MockResponse
-
-
-@pytest.fixture
-def mock_get_response():
-    class MockResponse:
-
-        def __init__(self, status_code=200, json_data=None):
-            self.status_code = status_code
-            self._json = json_data or {"data": "mocked"}
-
-        def json(self):
-            return self._json
-
-    return MockResponse
-
-
-@patch("requests.post")
-def test_train_and_prediction(mock_post, base_data, mock_post_response):
-    mock_post.return_value = mock_post_response()
-    data = base_data.copy()
-    data.update({
-        "name_database_data": "bake_data",
-        "name_table_for_learn": "bake_cooling_system_learn",
-        "name_table_for_predict": "bake_cooling_system",
-        "label_limit": "Все",
-        "str_limit": "1:21",
-        "task_manager": "LEARN AND PREDICT",
-    })
-    response = requests.post(f"{BASE_URL}/train_and_prediction", json=data)
+@pytest.mark.functional
+@pytest.mark.parametrize("method,path,task", [
+    ("POST", "/task/train", "LEARN"), ("GET", "/task/train", "LEARN"),
+    ("POST", "/task/prediction", "PREDICT"),
+    ("POST", "/task/train_and_prediction", "LEARN AND PREDICT"),
+    ("DELETE", "/task/delete", "DELETE")])
+def test_routes_execute_service(
+        client, payload, monkeypatch, method, path, task):
+    service = AsyncMock(return_value={"data": "executed"})
+    monkeypatch.setattr(main, "task_processing", service)
+    response = client.request(
+        method, path, json={
+            **payload, "task_manager": task})
     assert response.status_code == 200
-    assert "data" in response.json()
-
-    # Проверяем на верный адрес запроса
-    mock_post.assert_called_once_with(
-        f"{BASE_URL}/train_and_prediction",
-        json=data,
-    )
+    assert response.json() == {"data": "executed"}
+    assert service.await_count == 1
+    assert service.await_args.args[0]["task_manager"] == task
 
 
-@patch("requests.get")
-def test_train(mock_get, base_data, mock_get_response):
-    mock_get.return_value = mock_get_response()
-    data = base_data.copy()
-    data.update({
-        "name_database_data": "bake_data",
-        "name_table_for_learn": "bake_cooling_system_learn",
-        "task_manager": "LEARN",
-    })
-    response = requests.get(f"{BASE_URL}/train", json=data)
+@pytest.mark.parametrize("code", [404, 409, 422, 503])
+def test_http_errors_preserved(client, payload, monkeypatch, code):
+    monkeypatch.setattr(
+        main, "task_processing", AsyncMock(
+            side_effect=HTTPException(
+                code, "expected")))
+    response = client.post("/task/train", json=payload)
+    assert response.status_code == code
+    assert response.json()["detail"] == "expected"
+
+
+@pytest.mark.parametrize("exc,code",
+                         [(ValueError("invalid"),
+                           422),
+                          (RuntimeError("private"),
+                           500)])
+def test_service_failures(client, payload, monkeypatch, exc, code):
+    monkeypatch.setattr(main, "task_processing", AsyncMock(side_effect=exc))
+    response = client.post("/task/train", json=payload)
+    assert response.status_code == code
+    assert "private" not in response.text
+
+
+@pytest.mark.parametrize("field,value", [
+    ("port", True), ("port", "5432"), ("port", 0), ("port", 65536),
+    ("task_manager", "OTHER"), ("server", ""),
+    ("name_database_data", ""), ("name_table_for_learn", ""),
+    ("label_limit", "wrong"), ("str_limit", "0:3"), ("str_limit", "3:1")])
+def test_invalid_payload(client, payload, field, value):
+    assert client.post(
+        "/task/train",
+        json={
+            **payload,
+            field: value}).status_code == 422
+
+
+def test_wrong_route_task(client, payload):
+    assert client.post("/task/prediction", json=payload).status_code == 422
+
+
+def test_delete_needs_no_dataset(client, payload, monkeypatch):
+    monkeypatch.setattr(
+        main, "task_processing", AsyncMock(
+            return_value={
+                "data": "ok"}))
+    keys = ("server", "port", "user", "password", "name_database_agent")
+    request = {k: payload[k] for k in keys}
+    response = client.request(
+        "DELETE",
+        "/task/delete",
+        json={
+            **request,
+            "task_manager": "DELETE"})
     assert response.status_code == 200
-    assert "data" in response.json()
-
-    # Проверяем на верный адрес запроса
-    mock_get.assert_called_once_with(
-        f"{BASE_URL}/train",
-        json=data,
-    )
 
 
-@patch("requests.post")
-def test_prediction(mock_post, base_data, mock_post_response):
-    mock_post.return_value = mock_post_response()
-    data = base_data.copy()
-    data.update({
-        "name_database_data": "bake_data",
-        "name_table_for_learn": "bake_cooling_system",
-        "label_limit": "Норма",
-        "str_limit": "1:20",
-        "task_manager": "PREDICT",
-    })
-    response = requests.post(f"{BASE_URL}/prediction", json=data)
+@pytest.mark.parametrize("task",
+                         ["LEARN", "PREDICT", "LEARN AND PREDICT", "DELETE"])
+def test_web_tasks(client, payload, monkeypatch, task):
+    service = AsyncMock(return_value={"data": "Модель обучена"})
+    monkeypatch.setattr(main, "task_processing", service)
+    response = client.post("/web/run", data={**payload, "task_manager": task})
     assert response.status_code == 200
-    assert "data" in response.json()
-
-    # Проверяем на верный адрес запроса
-    mock_post.assert_called_once_with(
-        f"{BASE_URL}/prediction",
-        json=data,
-    )
+    assert "TEST_SECRET" not in response.text
+    assert service.await_args.args[0]["task_manager"] == task
 
 
-@patch("requests.delete")
-def test_delete(mock_delete, base_data, mock_post_response):
-    mock_delete.return_value = mock_post_response()
-    data = base_data.copy()
-    data.update({"task_manager": "DELETE"})
-    response = requests.delete(f"{BASE_URL}/delete", json=data)
+def test_web_warning(client, payload, monkeypatch):
+    result = {"equipment": "demo", "data": [
+        {"ID": 1, "Timestamp": "12:00", "Label": "Предел"}]}
+    monkeypatch.setattr(
+        main, "task_processing", AsyncMock(
+            return_value=result))
+    response = client.post(
+        "/web/run",
+        data={
+            **payload,
+            "task_manager": "PREDICT"})
+    assert "Обнаружены строки" in response.text
+    assert "TEST_SECRET" not in response.text
+
+
+def test_web_failure(client, payload, monkeypatch):
+    monkeypatch.setattr(
+        main, "task_processing", AsyncMock(
+            side_effect=ValueError("bad")))
+    response = client.post("/web/run", data=payload)
+    assert "Ошибка" in response.text
+    assert "TEST_SECRET" not in response.text
+
+
+@pytest.mark.parametrize("path,expected",
+                         [("/", "Форма менеджера"),
+                          ("/static/style.css", "container")])
+def test_public_pages(client, path, expected):
+    response = client.get(path)
     assert response.status_code == 200
-    assert "data" in response.json()
-
-    # Проверяем на верный адрес запроса
-    mock_delete.assert_called_once_with(
-        f"{BASE_URL}/delete",
-        json=data,
-    )
+    assert expected in response.text

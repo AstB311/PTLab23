@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
-from assistant_lab2.src.analysis.base_ml_suite import BaseMLSuite
+from src.analysis.base_ml_suite import BaseMLSuite
 
 
 class ClassificationSuite(BaseMLSuite):
@@ -30,6 +30,18 @@ class ClassificationSuite(BaseMLSuite):
         # вызывает конструктор родителя
         super().__init__(random_state=random_state)
         self.test_size = test_size
+
+    @property
+    def test_size(self) -> float:
+        return self.__test_size
+
+    @test_size.setter
+    def test_size(self, value: float) -> None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError("test_size должен быть числом")
+        if not 0 < value < 1:
+            raise ValueError("test_size должен быть между 0 и 1")
+        self.__test_size = float(value)
 
     # Деление
     def _split(self, X: np.ndarray, y: np.ndarray):
@@ -48,6 +60,9 @@ class ClassificationSuite(BaseMLSuite):
         params = best_params or {}
         X_train, X_test, \
             y_train, y_test = self._split(X, y)
+        params = dict(params)
+        if "random_state" in estimator_cls().get_params():
+            params.setdefault("random_state", self.random_state)
         model = estimator_cls(**params)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -72,12 +87,10 @@ class ClassificationSuite(BaseMLSuite):
         разделимыми с помощью
         LogisticRegression и линейного SVM.
         """
+        X_train, X_test, y_train, y_test = self._split(X, y)
         scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_scaled, y, test_size=self.test_size,
-            random_state=self.random_state
-        )
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
 
         # Логистическая регрессия
         log_reg = LogisticRegression()

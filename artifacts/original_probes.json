@@ -1,0 +1,21 @@
+{
+  "api_train": {
+    "detail": "Внутренняя ошибка сервера: 'builtin_function_or_method' object is not subscriptable"
+  },
+  "delete_without_prediction_field": 422,
+  "row_range": "ValueError",
+  "empty_filter": [
+    [
+      1,
+      "Норма"
+    ]
+  ],
+  "integer_columns_shape": [
+    0
+  ],
+  "loaded_clustering": "n_samples=2 should be >= n_clusters=3.",
+  "two_time_columns": "ValueError",
+  "single_cluster_trial": "ValueError",
+  "secret_in_html": true,
+  "rules_from_project_root": "FileNotFoundError"
+}

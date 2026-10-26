@@ -1,4 +1,5 @@
 import pickle
+import re
 from typing import Optional, Dict, Any, List
 
 import asyncpg
@@ -73,6 +74,14 @@ class DatabaseConnector:
 
         return self.__conn
 
+    @staticmethod
+    def __identifier(value: str) -> str:
+        if not isinstance(value, str) or not re.fullmatch(
+            r"[A-Za-z_][A-Za-z0-9_]*", value
+        ):
+            raise ValueError("Некорректный SQL идентификатор")
+        return value
+
     async def connect(self) -> bool:
         """Устанавливает соединение, не выдавая его внешнему коду."""
         if self.is_connected:
@@ -100,6 +109,8 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> bool:
         """Проверяет существование таблицы."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         try:
@@ -128,6 +139,8 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> bool:
         """Проверяет наличие оборудования в таблице."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         try:
@@ -154,8 +167,11 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> None:
         """Создаёт таблицу для хранения моделей."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
+        table_column_name = self.__identifier(table_column_name)
         try:
             query = f"""
                 CREATE TABLE IF NOT EXISTS {schema}.{table_name} (
@@ -183,9 +199,15 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> None:
         """Вставляет данные в таблицу."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         # Работаем с копией, чтобы не менять словарь вызывающего кода.
+        if not data:
+            raise ValueError("Нет данных для вставки")
+        for column in data:
+            self.__identifier(column)
         values = data.copy()
 
         if "model" in values:
@@ -216,6 +238,8 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> List[Dict[str, Any]]:
         """Получает все данные из таблицы."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         try:
@@ -238,6 +262,9 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> List[Dict[str, Any]]:
         """Получает данные по значению в заданном столбце."""
+        coloumn_name = self.__identifier(coloumn_name)
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         try:
@@ -265,6 +292,8 @@ class DatabaseConnector:
         schema: str = "public",
     ) -> None:
         """Очищает таблицу и сбрасывает счётчик идентификаторов."""
+        schema = self.__identifier(schema)
+        table_name = self.__identifier(table_name)
         conn = self.__require_connection()
 
         try:

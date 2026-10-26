@@ -1,0 +1,2 @@
+python -m pytest tests --cov=src --cov=main_scripts --cov-branch --cov-report=term-missing --cov-report=json:artifacts/coverage.json --cov-report=html:artifacts/htmlcov --junitxml=artifacts/tests.xml -q
+python -m pycodestyle src tests main_scripts

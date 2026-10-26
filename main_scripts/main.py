@@ -3,11 +3,11 @@ from fastapi import FastAPI, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 import uvicorn
 
 import warnings
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Literal
 import json
 import os
 import emoji
@@ -30,11 +30,11 @@ from sklearn.ensemble import RandomForestClassifier, \
 from sklearn.metrics import precision_score, recall_score, \
     silhouette_score, accuracy_score
 
-from assistant_lab2.src.analysis import two_methods_included
-from assistant_lab2.src.analysis.connector import DatabaseConnector
-from assistant_lab2.src.analysis.classification_methods \
+from src.analysis import two_methods_included
+from src.analysis.connector import DatabaseConnector
+from src.analysis.classification_methods \
     import ClassificationSuite
-from assistant_lab2.src.analysis.clusterization_methods \
+from src.analysis.clusterization_methods \
     import Clusterizer
 
 from pathlib import Path
@@ -56,16 +56,36 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 class StringsInputServer(BaseModel):
     server: str
-    port: int
+    port: int = Field(ge=1, le=65535, strict=True)
     user: str
     password: str
     name_database_data: Optional[str] = None
     name_database_agent: str
     name_table_for_learn: Optional[str] = None
-    name_table_for_predict: str
+    name_table_for_predict: Optional[str] = None
     label_limit: Optional[str] = None
     str_limit: Optional[str] = None
-    task_manager: str
+    task_manager: Literal["LEARN", "PREDICT", "LEARN AND PREDICT", "DELETE"]
+
+    @model_validator(mode="after")
+    def validate_task(self):
+        required = ["server", "user", "name_database_agent"]
+        if self.task_manager != "DELETE":
+            required.append("name_database_data")
+        if self.task_manager in ("LEARN", "LEARN AND PREDICT"):
+            required.append("name_table_for_learn")
+        if self.task_manager in ("PREDICT", "LEARN AND PREDICT"):
+            required.append("name_table_for_predict")
+        for name in required:
+            if not (getattr(self, name) or "").strip():
+                raise ValueError(f"Не заполнено поле {name}")
+        if self.label_limit and self.label_limit not in {
+            "Все", "Норма", "Перегрузка", "Предел"
+        }:
+            raise ValueError("Неизвестная метка")
+        if self.str_limit:
+            two_methods_included.parse_row_limit(self.str_limit)
+        return self
 
 
 async def delete_task_processing(
@@ -92,8 +112,8 @@ async def data_learn_claster_classif_distribution(
         )
     (labels_cluster, name_model_clusterization, model_clusterization,
      hyper_accuracy) = data_clasterization(
-            data_for_clustering, num_clusters
-        )
+        data_for_clustering, num_clusters
+    )
     data_with_labels = two_methods_included.concatenate_data_with_labels(
         data_for_clustering, labels_cluster, "behind"
     )
@@ -104,10 +124,6 @@ async def data_learn_claster_classif_distribution(
         data_classification(
             data_for_classification, label_column
         )
-    if hyper_accuracy+0.25 < 1:
-        hyper_accuracy = hyper_accuracy + 0.25
-    if model_accuracy+0.25 < 1:
-        model_accuracy = model_accuracy + 0.25
     data_for_claster_table = {
         "machine": str(db_connector_data.equipment),
         "method_claster": str(name_model_clusterization),
@@ -133,8 +149,9 @@ async def data_learn_claster_classif_distribution(
 def data_classification(
     data_for_classification: List[Dict],
     label_column: List[Dict],
-    rules_classification_file: str = "rules/"
-                                     "classification_rules.json",
+    rules_classification_file: str = str(
+        Path(__file__).parent / "rules/classification_rules.json"
+    ),
 ) -> Tuple[str, str, float]:
     labels = label_column
     best_score = 0
@@ -196,7 +213,7 @@ def data_classification(
         elif algorithm_name == "KNN":
             print("\tВыбранный метод классификации - KNN")
             param_grid = {
-                "n_neighbors": list(range(1, counts.max())),
+                "n_neighbors": list(range(1, min(10, len(X) // 2) + 1)),
                 "weights": ["uniform", "distance"],
                 "metric": ["euclidean", "manhattan", "minkowski"],
             }
@@ -325,8 +342,12 @@ def data_classification(
                               X, y, best_params)
         else:
             raise ValueError(f"Ошибка выбора алгоритма.")
-    precision = precision_score(y_test, y_pred, average="macro")
-    recall = recall_score(y_test, y_pred, average="macro")
+    precision = precision_score(
+        y_test,
+        y_pred,
+        average="macro",
+        zero_division=0)
+    recall = recall_score(y_test, y_pred, average="macro", zero_division=0)
     accuracy = round(accuracy_score(y_test, y_pred), 2)
     print(f"\tТочность модели {algorithm_name}: {accuracy}")
     print(f"\tТочность модели precision {algorithm_name}: {precision}")
@@ -337,7 +358,9 @@ def data_classification(
 def data_clasterization(
     data_for_clustering: List[Dict],
     num_clusters: int,
-    rules_claster_file: str = "rules/clusterization_rules.json",
+    rules_claster_file: str = str(
+        Path(__file__).parent / "rules/clusterization_rules.json"
+    ),
 ) -> Tuple[List[Dict], str, str, float]:
     try:
         with open(rules_claster_file, "r") as f:
@@ -370,9 +393,14 @@ def data_clasterization(
     algorithm_name = two_methods_included.\
         method_selector_by_analysis(analysis_claster_results,
                                     rules_claster)
+    if algorithm_name in {"AgglomerativeClustering",
+                          "SpectralClustering", "DBSCAN"}:
+        algorithm_name = "KMeans"
     print("METHOD:", algorithm_name)
     clusterizer = Clusterizer(random_state=42)
-    max_n_clusters = max(3, min(6, num_samples - 1))
+    max_n_clusters = min(6, num_samples - 1)
+    if num_samples < 3:
+        raise ValueError("Для кластеризации нужно минимум 3 строки")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore",
                               category=UserWarning)
@@ -381,7 +409,7 @@ def data_clasterization(
         if algorithm_name == "KMeans":
             print("\tВыбранный метод - KMeans")
             param_grid = {
-                "n_clusters": list(range(2, max_n_clusters - 1)),
+                "n_clusters": list(range(2, max_n_clusters + 1)),
                 "init": ["k-means++", "random"],
                 "max_iter": list(range(100, 301, 50))}
             result = two_methods_included.\
@@ -400,7 +428,7 @@ def data_clasterization(
         elif algorithm_name == "AgglomerativeClustering":
             print("\tВыбранный метод - AgglomerativeClustering")
             param_grid = {
-                "n_clusters": list(range(2, max_n_clusters - 1)),
+                "n_clusters": list(range(2, max_n_clusters + 1)),
                 "linkage": ["ward", "complete", "average"]}
             result = two_methods_included.\
                 optimize_hyperparameters_claster(
@@ -416,9 +444,9 @@ def data_clasterization(
                                           best_params)
         elif algorithm_name == "SpectralClustering":
             print("\tВыбранный метод - SpectralClustering")
-            param_grid = {"n_clusters": list(range(2, max_n_clusters - 1)),
+            param_grid = {"n_clusters": list(range(2, max_n_clusters + 1)),
                           "affinity": ["rbf", "nearest_neighbors"],
-                          "gamma": np.arange(0.1, 1.0, 0.1)}
+                          "gamma": [1.0, 2.0]}
             result = two_methods_included.\
                 optimize_hyperparameters_claster(
                     SpectralClustering, param_grid,
@@ -426,7 +454,7 @@ def data_clasterization(
             if not result:
                 best_params = OrderedDict([("n_clusters", 3),
                                            ("affinity", "rbf"),
-                                           ("gamma", 0.5)])
+                                           ("gamma", 1.0)])
             else:
                 best_params, best_score = result
             labels, model_clusterization = \
@@ -436,7 +464,7 @@ def data_clasterization(
             print("\tВыбранный метод кластеризации - DBSCAN")
             param_grid = {"eps": np.arange(0.1, 0.7, 0.1),
                           "min_samples":
-                              list(range(2, max_n_clusters - 1))}
+                              list(range(2, max_n_clusters + 1))}
             result = two_methods_included.\
                 optimize_hyperparameters_claster(DBSCAN, param_grid,
                                                  data_for_clustering,
@@ -469,8 +497,6 @@ def data_clasterization(
         else:
             raise ValueError(f"Ошибка выбора алгоритма.")
     best_score = round(best_score, 2)
-    if best_score+0.25 < 1:
-        best_score = best_score + 0.25
     print("\tЛучшая метрика силуэта:", best_score)
     final_score = -1
     try:
@@ -507,8 +533,10 @@ async def data_predict_claster_classif_distribution(
                                                 item["id"]),
                               reverse=True)
         data_about_cluserization = ssorted_data[0]
-    else:
+    elif data_about_cluserization:
         data_about_cluserization = data_about_cluserization[0]
+    else:
+        raise HTTPException(409, "Нет сохранённой кластерной модели")
     print("Данные из таблицы для кластеризации:\n", data_about_cluserization)
     method_cluster = data_about_cluserization["method_claster"]
     model_cluster = data_about_cluserization["model"]
@@ -553,8 +581,10 @@ async def data_predict_claster_classif_distribution(
                               reverse=True
                               )
         data_about_classification = ssorted_data[0]
-    else:
+    elif data_about_classification:
         data_about_classification = data_about_classification[0]
+    else:
+        raise HTTPException(409, "Нет сохранённой модели классификации")
     print("Данные из таблицы для классификации:\\n", data_about_classification)
     method_classif = data_about_classification["method_classif"]
     model_classif = data_about_classification["model"]
@@ -636,6 +666,8 @@ async def processing_result_by_task(
         return {"data": "Модель обучена"}
     elif task_manager == "PREDICT":
         print("\nУстройство: ", db_connection.equipment_predict)
+        if len(dataset) == 0:
+            return {"equipment": db_connection.equipment_predict, "data": []}
         df = pd.DataFrame(dataset)
         df = df.iloc[:, [0, 1, -1]]
         df.columns = ["ID", "Timestamp", "Label"]
@@ -667,254 +699,100 @@ async def processing_result_by_task(
         return equipment_data
 
 
-async def task_processing(
-        result: Dict[str, str], predict: str
-) -> Dict[str, str]:
-    data_to_return = {}
+async def task_processing(result, predict=None):
+    """Выполняет задачу и закрывает оба подключения при любом исходе."""
+    result = StringsInputServer(**result).model_dump()
+    task = result["task_manager"]
+    agent = DatabaseConnector(
+        result["server"], result["port"], result["name_database_agent"],
+        result["user"], result["password"]
+    )
+    source = None
     try:
-        db_connector_agent = DatabaseConnector(result["server"],
-                                               result["port"],
-                                               result["name_database_agent"],
-                                               result["user"],
-                                               result["password"])
-        conn_agent = await db_connector_agent.connect()
-    except Exception as e:
-        return data_to_return
-    if conn_agent:
-        if result["task_manager"] == "DELETE":
-            print("[RESULT TASK]:")
-            data_to_return = \
-                await delete_task_processing(
-                    db_connector_agent
-                )
-            if data_to_return:
-                return data_to_return
-            return data_to_return
-        else:
-            print("[INFO DATASETS]:")
-            db_connector_data = DatabaseConnector(
-                result["server"],
-                result["port"],
-                result.get("name_database_data"),
-                result["user"],
-                result["password"],
-                result.get("name_table_for_learn"),
-                predict,
+        await agent.connect()
+        if task == "DELETE":
+            return await delete_task_processing(agent)
+        predict = predict or result.get("name_table_for_predict")
+        # Models are stored under the target equipment identity.
+        equipment = predict or result.get("name_table_for_learn")
+        source = DatabaseConnector(
+            result["server"], result["port"], result["name_database_data"],
+            result["user"], result["password"], equipment, predict
+        )
+        await source.connect()
+        table = (result["name_table_for_learn"]
+                 if task != "PREDICT" else predict)
+        if not await source.check_table_exists(table):
+            raise HTTPException(404, "Таблица данных не найдена")
+        if task != "PREDICT":
+            await agent.create_model_table("data_classif", "method_classif")
+            await agent.create_model_table("data_claster", "method_claster")
+            data = await source.get_data_table(result["name_table_for_learn"])
+            await data_learn_claster_classif_distribution(
+                data, "LEARN", agent, source
             )
-            conn_data = await db_connector_data.connect()
-            if conn_data and await \
-                    db_connector_data.check_table_exists(
-                        result.get("name_table_for_learn")
-                    ):
-                print("\tВсе необходимые датасеты обнаружены!")
-                print("\tСоздаем или находим таблицы "
-                      "для успешной работы агента.....")
-                await db_connector_agent.create_model_table("data_classif",
-                                                            "method_classif")
-                await db_connector_agent.create_model_table("data_claster",
-                                                            "method_claster")
-                print("\tТаблицы созданы или были успешно найдены!")
-                print("\tТогда получим данные из таблиц о необходимом датчике")
-                if result["task_manager"] == "LEARN":
-                    data = await db_connector_data.get_data_table(
-                        result["name_table_for_learn"]
-                    )
-                    print("\tДанные для обучения получены!")
-                    print("\tАлгоритм обучения будет запущен....")
-                    print("\n[INFO PROCESSING]:")
-                    if await data_learn_claster_classif_distribution(
-                            data,
-                            result["task_manager"],
-                            db_connector_agent,
-                            db_connector_data
-                    ):
-                        data_to_return = await processing_result_by_task(
-                            db_connector_data,
-                            data,
-                            "LEARN"
-                        )
-                        await db_connector_agent.close()
-                        await db_connector_data.close()
-                        return data_to_return
-                if result["task_manager"] == "PREDICT":
-                    data = await db_connector_data.get_data_table(predict)
-                    print("\tДанные для предсказания получены!")
-                    if not await db_connector_agent.check_exists_in_table(
-                            "data_classif",
-                            predict
-                    ):
-                        print("\n[ERROR DATASETS]:\n"
-                              "Вы указали задачу обучения....")
-                        print("Но ваше оборудование "
-                              "не содержит обученную модель! "
-                              "Попробуйте другую задачу.\n")
-                        return {"Ваше оборудование "
-                                "не содержит обученную модель. "
-                                "Попробуйте другую задачу"}
-                    print("\tАлгоритм предсказания будет запущен....")
-                    data_all = await data_predict_claster_classif_distribution(
-                        db_connector_data,
-                        db_connector_agent,
-                        data,
-                        result["task_manager"],
-                        result.get("label_limit"),
-                        result.get("str_limit"),
-                    )
-                    data_to_return = await processing_result_by_task(
-                        db_connector_data,
-                        data_all,
-                        "PREDICT"
-                    )
-                    await db_connector_agent.close()
-                    await db_connector_data.close()
-                    return data_to_return
-                if result["task_manager"] == "LEARN AND PREDICT":
-                    data = await db_connector_data.get_data_table(
-                        result["name_table_for_learn"]
-                    )
-                    print("\tДанные для обучения "
-                          "и предсказания получены!")
-                    print("\tАлгоритм обучения "
-                          "и предсказания будет запущен....")
-                    print("\n[INFO PROCESSING]:")
-                    if await data_learn_claster_classif_distribution(
-                            data, "LEARN",
-                            db_connector_agent,
-                            db_connector_data
-                    ):
-                        data = \
-                            await db_connector_data.get_data_table(predict)
-                        data_all = \
-                            await data_predict_claster_classif_distribution(
-                                db_connector_data, db_connector_agent, data,
-                                "PREDICT", result.get("label_limit"),
-                                result.get("str_limit")
-                            )
-                        data_to_return = \
-                            await processing_result_by_task(
-                                db_connector_data, data_all,
-                                "PREDICT"
-                            )
-                        await db_connector_agent.close()
-                        await db_connector_data.close()
-                        return data_to_return
-                await db_connector_agent.close()
-                await db_connector_data.close()
-            return data_to_return
+            if task == "LEARN":
+                return await processing_result_by_task(source, data, "LEARN")
+        if not await source.check_table_exists(predict):
+            raise HTTPException(404, "Таблица для предсказания не найдена")
+        for table in ("data_classif", "data_claster"):
+            if not await agent.check_table_exists(table):
+                raise HTTPException(409, "Сначала выполните обучение")
+        data = await source.get_data_table(predict)
+        predicted = await data_predict_claster_classif_distribution(
+            source, agent, data, "PREDICT", result.get("label_limit"),
+            result.get("str_limit")
+        )
+        return await processing_result_by_task(source, predicted, "PREDICT")
+    finally:
+        try:
+            if source is not None:
+                await source.close()
+        finally:
+            await agent.close()
 
 
-# API
+async def execute_request(input, expected_task):
+    if input.task_manager != expected_task:
+        raise HTTPException(422, "Задача не соответствует выбранному маршруту")
+    try:
+        return await task_processing(
+            input.model_dump(), input.name_table_for_predict
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(500, "Ошибка выполнения задачи") from exc
+
+
 @app.post("/task/train_and_prediction")
 async def api_train_and_prediction(input: StringsInputServer):
-    result = {
-        "server": input.server,
-        "port": input.port,
-        "user": input.user,
-        "password": input.password,
-        "name_database_data": input.name_database_data,
-        "name_database_agent": input.name_database_agent,
-        "name_table_for_learn": input.name_table_for_learn,
-        "name_table_for_predict": input.name_table_for_predict,
-        "label_limit": input.label_limit,
-        "str_limit": input.str_limit,
-        "task_manager": input.task_manager,
-    }
-    try:
-        result_task = await task_processing(result,
-                                            result
-                                            ["name_table_for_predict"]
-                                            )
-        if result_task:
-            return result_task
-        raise HTTPException(status_code=500,
-                            detail="Ошибка при обработке задачи")
-    except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Внутренняя ошибка сервера: {str(e)}")
+    return await execute_request(input, "LEARN AND PREDICT")
 
 
-@app.get("/task/train")
+@app.post("/task/train")
+@app.get("/task/train", deprecated=True)
 async def api_train(input: StringsInputServer):
-    result = {
-        "server": input.server,
-        "port": input.port,
-        "user": input.user,
-        "password": input.password,
-        "name_database_data": input.name_database_data,
-        "name_database_agent": input.name_database_agent,
-        "name_table_for_learn": input.name_table_for_learn,
-        "task_manager": input.task_manager,
-    }
-    try:
-        result_task = await task_processing(result,
-                                            result.get
-                                            ["name_table_for_predict"]
-                                            )
-        if result_task:
-            return result_task
-        raise HTTPException(status_code=500,
-                            detail="Ошибка при обработке задачи")
-    except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Внутренняя ошибка сервера: {str(e)}")
+    # GET с JSON оставлен для совместимости; для новых клиентов нужен POST.
+    return await execute_request(input, "LEARN")
 
 
 @app.delete("/task/delete")
 async def api_delete(input: StringsInputServer):
-    result = {
-        "server": input.server,
-        "port": input.port,
-        "user": input.user,
-        "password": input.password,
-        "name_database_agent": input.name_database_agent,
-        "task_manager": input.task_manager,
-    }
-    try:
-        result_task = await task_processing(result,
-                                            result.get
-                                            ["name_table_for_predict"]
-                                            )
-        if result_task:
-            return result_task
-        raise HTTPException(status_code=500,
-                            detail="Ошибка при обработке задачи")
-    except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Внутренняя ошибка сервера: {str(e)}")
+    return await execute_request(input, "DELETE")
 
 
 @app.post("/task/prediction")
 async def api_prediction(input: StringsInputServer):
-    result = {
-        "server": input.server,
-        "port": input.port,
-        "user": input.user,
-        "password": input.password,
-        "name_database_data": input.name_database_data,
-        "name_database_agent": input.name_database_agent,
-        "name_table_for_learn": input.name_table_for_learn,
-        "label_limit": input.label_limit,
-        "str_limit": input.str_limit,
-        "task_manager": input.task_manager,
-    }
-    try:
-        result_task = await task_processing(result,
-                                            result.get
-                                            ["name_table_for_predict"]
-                                            )
-        if result_task:
-            return result_task
-        raise HTTPException(status_code=500,
-                            detail="Ошибка при обработке задачи")
-    except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Внутренняя ошибка сервера: {str(e)}")
+    return await execute_request(input, "PREDICT")
 
 
 # Интерфейс
 @app.get("/", response_class=HTMLResponse)
 async def web_index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.post("/web/run", response_class=HTMLResponse)
@@ -927,7 +805,7 @@ async def web_run(
     name_database_data: str = Form(None),
     name_database_agent: str = Form(...),
     name_table_for_learn: str = Form(None),
-    name_table_for_predict: str = Form(...),
+    name_table_for_predict: str = Form(None),
     label_limit: str = Form(None),
     str_limit: str = Form(None),
     task_manager: str = Form(...),
@@ -946,7 +824,8 @@ async def web_run(
         "task_manager": task_manager,
     }
     try:
-        result_task = await task_processing(payload, name_table_for_predict)
+        validated = StringsInputServer(**payload)
+        result_task = await execute_request(validated, task_manager)
         # Подготовим данные для отрисовки
         table_rows = None
         title = "Готово"
@@ -967,7 +846,7 @@ async def web_run(
                 in result_task and isinstance(result_task["data"], list):
             table_rows = result_task["data"]
             title = f"Результат для устройства: " \
-                    f"{result_task.get('equipment','—')}"
+                f"{result_task.get('equipment', '—')}"
             # Проверим наличие метки 'Предел'
             if any(row.get("Label") == "Предел" for row in table_rows):
                 warning = "Обнаружены строки с меткой «Предел». " \
@@ -975,29 +854,32 @@ async def web_run(
         elif isinstance(result_task, dict):
             title = result_task.get("data", "Готово")
         return templates.TemplateResponse(
-            "result.html",
-            {
+            request=request,
+            name="result.html",
+            context={
                 "request": request,
                 "title": title,
                 "rows": table_rows,
                 "warning": warning,
-                "payload": payload,
+                "payload": {
+                    k: v for k,
+                    v in payload.items() if k != "password"},
             },
         )
     except Exception as e:
         return templates.TemplateResponse(
-            "result.html",
-            {
+            request=request,
+            name="result.html",
+            context={
                 "request": request,
                 "title": "Ошибка",
                 "rows": None,
                 "warning": f"Ошибка: {str(e)}",
-                "payload": payload,
+                "payload": {
+                    k: v for k, v in payload.items() if k != "password"
+                },
             },
         )
-
-
-nest_asyncio.apply()
 
 
 # Коммент

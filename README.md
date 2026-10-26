@@ -1,226 +1,45 @@
-# Система классификации на основе кластеризации данных мониторинга оборудования
+# PTLab23 Тестирование Python проекта
 
-## Описание
-Выполняется передача параметров и доступ к данным на основе API. 
-Интерфейс представлен.
+Исходный проект классификации на основе кластеризации дополнен лабораторной работой 2.
+Методичка описывает C++ Библиотека. Использование этого Python проекта требует согласования замены с преподавателем. pytest используется как аналог Google Test. Предметная область не заменена библиотекой книг.
 
----
+## Быстрый запуск в Windows PowerShell
 
-## Структура проекта
-```
-assistant/
- ├── .github/workflows/github-actions-testing.yml   # CI/CD
- ├── main_scripts/
- │    ├── rules/
- │    │    ├── classification_rules.json
- │    │    └── clusterization_rules.json
- │    └── main.py
- ├── src/
- │    ├── rules/
- │    │    ├── classification_methods.py
- │    │    ├── clusterization_methods.py
- │    │    ├── connector.py
- │    │    ├── base_ML_Suite.py
- │    │    └── two_methods_included.py
- ├── ui/
- │    ├── static/
- │    │    └── style.css
- │    ├── templates/
- │    │    ├── index.html
- │    │    └── result.html
- ├── test/
- │    ├── test_API.py
- │    └── test_database.py
- ├── requirements.txt
- ├── .gitignore
- └── README.md
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest tests -q
+.\.venv\Scripts\python.exe -m pycodestyle src tests main_scripts
+.\.venv\Scripts\python.exe -m pytest tests --cov=src --cov=main_scripts --cov-branch --cov-report=html:artifacts/htmlcov --cov-report=json:artifacts/coverage.json --junitxml=artifacts/tests.xml
 ```
 
----
+Автоматические тесты не требуют PostgreSQL и работающего внешнего HTTP сервера. Данные синтетические. В модульных тестах БД заменены вызовы asyncpg, в интеграционном сценарии — хранилище. В API тестах запрос проходит через реальное ASGI приложение; HTTP ответ не подделывается.
 
-## Используемые технологии
-1. Язык программирования: **Python 3.10+**  
-2. Управление зависимостями: **requirements.txt**  
-3. Модульное тестирование: **pytest**   
-4. CI/CD: **GitHub Actions**  
-5. Проверка стиля кода: **pycodestyle (PEP8)**
-6. Интерфейс: **jinja2**
+## Приложение
 
----
-
-## Инструкция по запуску
-
-### Клонирование репозитория
-```bash
-git clone https://github.com/<ваш_логин>/PTLab2.git
+```powershell
+python -m uvicorn main_scripts.main:app --host 127.0.0.1 --port 8000
+python -m main_scripts.cli --config config.local.json
 ```
 
-### Создание баз данных PostgresSQL (обязательно для полной работы создать два экзепляра)
-```bash
-CREATE DATABASE <ваше_название_базы_данных> OWNER postgres;
-```
+Для приложения требуется настоящий PostgreSQL. Подготовка описана в docs/manual_postgresql.md. DELETE очищает все модели из двух таблиц базы агента. Пароль повторного web запуска вводится заново.
 
-### Установка переменной окружения с паролем PostgreSQL (или настройте PostgreSQL вручную)
-```bash
-$env:DATABASE_PASSWORD = "ps_password"
-```
+## Состав
 
-### Установка зависимостей
-```bash
-pip install -r requirements.txt
-```
+- main_scripts/main.py — API, web форма и оркестрация.
+- main_scripts/cli.py — меню четырёх операций и выхода.
+- src/analysis/ — исходные классы и утилиты с исправлениями.
+- tests/ — модульные, функциональные и компонентные проверки.
+- docs/test_plan.md, test_cases.csv, pairwise.csv — план и сценарии.
+- docs/bug_reports.md — 16 дефектов исходной версии и регрессия.
+- docs/control_questions.md — ответы на вопросы методички.
+- artifacts/tests.txt, tests.xml, coverage.json, htmlcov/ — фактический прогон.
+- examples/demo_data.sql — синтетические данные для отдельной ручной проверки БД.
 
-### Запуск тестов
-```bash
-pytest tests
-```
+## Фактические результаты
 
-### Проверка стиля кода (PEP8)
-```bash
-pycodestyle src tests main_scripts
-```
+217 passed; пропущенных и упавших тестов нет. Операторы 88.93%, ветви 70.99%, совокупное покрытие 84.86%. Это результат Python 3.12.14 в Linux; локальный Windows и GitHub Actions необходимо прогнать самостоятельно.
 
-### Запуск программы
-```bash
-python main_scripts/main.py
-```
+Большинство ветвей библиотечных классов покрыто, но часть ветвей оркестрации и резервных параметров не исполнена. Промышленная точность ML, безопасность развёртывания и настоящие транзакции PostgreSQL не подтверждаются этим набором.
 
-Перейти в браузере по адресу: http://127.0.0.1:8000
----
-
-## Диаграмма классов
-```mermaid
-classDiagram
-direction TB
-
-%% =================== Базовый класс ===================
-class BaseMLSuite {
-  - __random_state : int
-  + random_state : int
-  + __init__(random_state: int = 42)
-}
-
-%% =================== Классификация ===================
-class ClassificationSuite {
-  - test_size : float
-  + __init__(test_size: float = 0.2, random_state: int = 42)
-  - _split(X, y)
-  - _train_and_predict(estimator_cls, X, y, best_params)
-  - _predict_loaded(loaded_model, data)
-  + determine_linearity(X, y, threshold) str
-  + naive_bayes(loaded_model, data, X, y, best_params)
-  + knn(loaded_model, data, X, y, best_params)
-  + svm(loaded_model, data, X, y, best_params)
-  + logreg(loaded_model, data, X, y, best_params)
-  + decision_tree(loaded_model, data, X, y, best_params)
-  + random_forest(loaded_model, data, X, y, best_params)
-  + gradboost(loaded_model, data, X, y, best_params)
-  + dump_model(model) bytes
-}
-
-%% =================== Кластеризация ===================
-class Clusterizer {
-  + __init__(random_state: int = 42)
-  - _fit_with(data, params, loaded_model, build_model_fn)
-  + kmeans(data, params, loaded_model)
-  + agglomerative(data, params, loaded_model)
-  + spectral(data, params, loaded_model)
-  + dbscan(data, params, loaded_model)
-  + affinity(data, params, loaded_model)
-}
-
-%% =================== Подключение к БД ===================
-class DatabaseConnector {
-  - __server : str
-  - __port : int
-  - __database : str
-  - __user : str
-  - __password : str
-  - __conn : Connection
-  + equipment : str
-  + equipment_predict : str
-  + server : str
-  + port : int
-  + database : str
-  + user : str
-  + is_connected : bool
-  - __require_connection() Connection
-  + __init__(server, port, database, user, password, equipment, equipment_predict)
-  + connect() bool
-  + check_table_exists(table_name, schema) bool
-  + check_exists_in_table(table_name, machine_name, schema) bool
-  + create_model_table(table_name, table_column_name, schema)
-  + insert_data(table_name, data, schema)
-  + get_data_table(table_name, schema) List
-  + get_data_table_in_coloumn(table_name, coloumn_name, machine_name, schema) List
-  + delete_table_agent(table_name, schema)
-  + close()
-}
-
-%% =================== Pydantic-модель ===================
-class StringsInputServer {
-  + server : str
-  + port : int
-  + user : str
-  + password : str
-  + name_database_data : Optional~str~
-  + name_database_agent : str
-  + name_table_for_learn : Optional~str~
-  + name_table_for_predict : str
-  + label_limit : Optional~str~
-  + str_limit : Optional~str~
-  + task_manager : str
-}
-
-%% =================== Вспомогательный модуль ===================
-class two_methods_included {
-  <<module>>
-  + concatenate_data_with_labels(data, labels_data, side)
-  + data_formater(data, task_manager, method)
-  + method_selector_by_analysis(analysis_results, rules) str
-  + objective_claster(trial, model_class, param_grid, X) float
-  + optimize_hyperparameters_claster(model_class, param_grid, X, n_trials)
-  + objective_classif(trial, model_class, param_grid, X, y) float
-  + optimize_hyperparameters_classif(model_class, param_grid, X, y, n_trials)
-  + processing_limit_str(data, str_limit) List
-  + processing_limit_label(data, label_limit) List
-}
-
-%% =================== FastAPI-приложение ===================
-class FastAPIApp {
-  <<main.py>>
-  + task_processing(result, predict)
-  + data_learn_claster_classif_distribution(...)
-  + data_predict_claster_classif_distribution(...)
-  + data_classification(...)
-  + data_clasterization(...)
-  + delete_task_processing(...)
-  + processing_result_by_task(...)
-  + api_train_and_prediction(input)
-  + api_train(input)
-  + api_delete(input)
-  + api_prediction(input)
-  + web_index(request)
-  + web_run(...)
-}
-
-%% =================== Наследование (обобщение) ===================
-BaseMLSuite <|-- ClassificationSuite : extends
-BaseMLSuite <|-- Clusterizer : extends
-
-%% =================== Зависимости (dependency) ===================
-FastAPIApp ..> StringsInputServer       : использует как входной DTO
-FastAPIApp ..> DatabaseConnector        : создаёт и вызывает
-FastAPIApp ..> ClassificationSuite      : создаёт и вызывает
-FastAPIApp ..> Clusterizer              : создаёт и вызывает
-FastAPIApp ..> two_methods_included     : вызывает функции
-
-ClassificationSuite ..> two_methods_included : использует утилиты
-Clusterizer         ..> two_methods_included : использует утилиты
-
-ClassificationSuite ..> DatabaseConnector : pickle-модели в БД
-Clusterizer         ..> DatabaseConnector : pickle-модели в БД
-
-%% =================== Внутренняя связь алгоритмов ===================
-ClassificationSuite ..> Clusterizer : использует метки кластеров
-```
+Модели pickle загружать только из доверенного собственного хранилища. Для новых данных кластерный сервис выбирает KMeans или AffinityPropagation; трансдуктивные алгоритмы не переобучаются скрыто.

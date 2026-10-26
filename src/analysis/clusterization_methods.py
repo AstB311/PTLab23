@@ -2,7 +2,7 @@ import pickle
 from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 
-from assistant_lab2.src.analysis.base_ml_suite import BaseMLSuite
+from src.analysis.base_ml_suite import BaseMLSuite
 
 from sklearn.cluster import (
     AffinityPropagation,
@@ -34,10 +34,14 @@ class Clusterizer(BaseMLSuite):
             model = build_model_fn(params)
             labels = model.fit_predict(data)
             return labels, model
-        # loaded_model передан: используем его
+        if loaded_model is None:
+            raise ValueError("Укажите params или loaded_model")
         model = pickle.loads(loaded_model)
-        labels = model.fit_predict(data)
-        return labels
+        if not hasattr(model, "predict"):
+            raise ValueError(
+                "Этот алгоритм не поддерживает predict для новых данных;"
+                " используйте KMeans или AffinityPropagation")
+        return model.predict(data)
 
     # Алгоритмы
     def kmeans(

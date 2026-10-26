@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/workspace/scratch/dea488b68896/lab_review/original/main_scripts/main.py", line 33, in <module>
+    from assistant_lab2.src.analysis import two_methods_included
+ModuleNotFoundError: No module named 'assistant_lab2'

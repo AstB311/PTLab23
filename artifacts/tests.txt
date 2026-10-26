@@ -1,0 +1,25 @@
+........................................................................ [ 33%]
+........................................................................ [ 66%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+- generated xml file: /workspace/scratch/dea488b68896/lab_review/evidence/tests.xml -
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.14-final-0 _______________
+
+Name                                     Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------
+main_scripts/__init__.py                     0      0      0      0   100%
+main_scripts/cli.py                         51      6     12      3    86%   28-29, 34-35, 64, 68
+main_scripts/main.py                       438     87    146     28    74%   205, 225, 245, 265, 286, 310, 333, 344, 368-371, 420, 428-498, 509-513, 531-535, 554-567, 577-583, 587, 599-630, 645, 649, 667->exit, 679-686, 689->697, 692, 737, 834-835, 842-843, 851->856, 854->856, 887
+src/__init__.py                              0      0      0      0   100%
+src/analysis/__init__.py                     0      0      0      0   100%
+src/analysis/base_ml_suite.py                6      0      0      0   100%
+src/analysis/classification_methods.py      85      0     20      0   100%
+src/analysis/clusterization_methods.py      40      0      6      0   100%
+src/analysis/connector.py                  133      0     20      0   100%
+src/analysis/two_methods_included.py       141      6     58      9    92%   31, 59->62, 95->98, 100, 112->111, 114->111, 137, 153, 195, 212
+------------------------------------------------------------------------------------
+TOTAL                                      894     99    262     40    85%
+Coverage HTML written to dir ../evidence/htmlcov
+Coverage JSON written to file ../evidence/coverage.json
+217 passed in 3.90s

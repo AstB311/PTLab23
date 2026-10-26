@@ -44,6 +44,9 @@
       {% for k,v in payload.items() %}
         <input type="hidden" name="{{k}}" value="{{v or ''}}"/>
       {% endfor %}
+      <label>Повторно введите пароль
+        <input type="password" name="password" required />
+      </label>
       <div class="actions">
         <button type="submit">Запустить ещё раз с теми же параметрами</button>
         <a class="link" href="/">Вернуться к форме</a>

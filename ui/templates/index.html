@@ -37,8 +37,8 @@
         <label>Таблица для обучения
           <input type="text" name="name_table_for_learn" placeholder="table_learn" />
         </label>
-        <label>Таблица для предсказания *
-          <input type="text" name="name_table_for_predict" placeholder="table_predict" required />
+        <label>Таблица для предсказания
+          <input type="text" name="name_table_for_predict" placeholder="table_predict" />
         </label>
       </div>
 
@@ -68,9 +68,9 @@
       <summary>Подсказки по заполнению</summary>
       <ul>
         <li><b>LEARN</b> — использует данные из базы для обучения и сохранения модели в базе агента. Обученная модель сохраняется в базе.</li>
-        <li><b>PREDICT</b> — читает модель из базы и предсказывает метки для данного оборудования. Результат сохраняется в базе.</li>
+        <li><b>PREDICT</b> — читает модель из базы и предсказывает метки для данного оборудования. Результат выводится в интерфейсе.</li>
         <li><b>LEARN AND PREDICT</b> — объединяет оба шага.</li>
-        <li><b>DELETE</b> — очищает данные по прошлому опыту анализа для данного оборудования.</li>
+        <li><b>DELETE</b> — очищает данные по прошлому опыту анализа для всех устройств в базе агента.</li>
       </ul>
     </details>
   </div>
